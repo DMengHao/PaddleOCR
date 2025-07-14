@@ -19,7 +19,10 @@ cp ./zlibwapi.dll ./
 # 进入到PaddleOCR目录下 cd ./PaddleOCR-release-2.6/PPOCRLabel 
 python PPOCRLabel.py
 ```
-
+cudatoolkit11.8安装成功
+<div align="center">
+  <img src="./images/cudatoolkit.png" width="45%">
+</div>
 使用教程链接：https://blog.csdn.net/didiaopao/article/details/119652371?fromshare=blogdetail&sharetype=blogdetail&sharerId=119652371&sharerefer=PC&sharesource=&sharefrom=from_link
 
 ## 2.训练环境配置
@@ -61,7 +64,9 @@ python tools/infer_rec.py -c configs/rec/PP-OCRv3/ch_PP-OCRv3_rec.yml -o Global.
 ```
 
 **训练一百轮次的测试结果：**
-
+<div align="center">
+  <img src="./images/字体检测结果.jpg" width="45%">
+</div>
 ## 6.导出推理模型
 
 ```python
