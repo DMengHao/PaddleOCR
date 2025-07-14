@@ -49,7 +49,7 @@ python tools/infer_det.py -c configs/det/ch_ppocr_v2.0/ch_det_res18_db_v2.0.yml 
 
 **训练一百轮次的测试结果（网上选取的20张图片自己标注过了）：**
 
-
+<div align="center"> <img src="./images/检测原图.jpg" width="45%" style="display:inline-block; margin-right:10px;"> <img src="./images/检测结果.jpg" width="45%" style="display:inline-block;"> </div>
 
 ## 5.训练文字识别模型
 
