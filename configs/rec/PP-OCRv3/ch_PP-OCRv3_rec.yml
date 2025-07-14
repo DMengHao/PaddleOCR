@@ -1,0 +1,132 @@
+Global: #全局配置
+  debug: false # 是否开启调试模式（输出更多日志）
+  use_gpu: true # 是否使用GPU训练
+  epoch_num: 100 # 训练总轮次
+  log_smooth_window: 20 # 滑动窗口大小（用于平滑训练日志中的损失值）
+  print_batch_step: 10 # 每多少个batch打印一次训练日志
+  save_model_dir: ./output/rec_ppocr_v3 # 模型保存路径
+  save_epoch_step: 3 # 每多少个epoch保存一次模型
+  eval_batch_step: 10 # 没多少个batch评估一次模型（训练过程中）
+  cal_metric_during_train: true # 是否在训练时计算评估指标（如准确率）
+  pretrained_model: D:\PaddleOCR-2.6-release-2.6\output\rec_ppocr_v3\iter_epoch_99.pdparams # 预训练模型路径
+  checkpoints: # 断点续训的模型路径（未填写则不启用）
+  save_inference_dir: ./output/rec # 推理模型保存路径（未填写则不保存）
+  use_visualdl: false # 是否使用VisualDL 可视化训练过程
+  infer_img: D:\PaddleOCR-2.6-release-2.6\train_data\rec\train # 推理测试的图片路径（非训练用途）
+  character_dict_path: ppocr/utils/ppocr_keys_v1.txt # 字符字典路径（定义支持的字符集）
+  max_text_length: &max_text_length 25 # 文本最大长度（用于CTC和SAR头）
+  infer_mode: false # 是否未推理模式（训练时设未false）
+  use_space_char: true # 是否识别空格字符
+  distributed: true # 是都使用分布式训练（多卡）
+  save_res_path: ./output/rec/predicts_ppocrv3.txt # 预测结果保存路径
+
+
+Optimizer:
+  name: Adam # 优化器类型（Adam）
+  beta1: 0.9 # Adam的一阶矩估计衰减率
+  beta2: 0.999 # Adam的二阶矩估计衰减率
+  lr:
+    name: Cosine # 学习率调度器类型（余弦退火）
+    learning_rate: 0.001 # 初始学习率
+    warmup_epoch: 5 # 学习率预热轮次（从0线性增长到学习率）
+  regularizer: 
+    name: L2 # 正则化类型（L2 正则化）
+    factor: 3.0e-05 # 正则化系数
+
+
+Architecture:
+  model_type: rec # 模型类型（识别模型）
+  algorithm: SVTR # 算法类型（SVTR:Scene Text Recognition）
+  Transform: # 图像预处理模型（次数未配置，使用默认）
+  Backbone: # 骨干网络
+    name: MobileNetV1Enhance # 使用增强版 MobileNetV1 
+    scale: 0.5 # 模型缩放比例（控制参数量）
+    last_conv_stride: [1, 2] # 最后一层卷积的步长
+    last_pool_type: avg # 最后一层池化类型（平均池化）
+  Head:
+    name: MultiHead # 多头预测（CTC+SAR）
+    head_list: 
+      - CTCHead: # CTC头（用于序列识别）
+          Neck:
+            name: svtr # CTC头(用于序列识别)
+            dims: 64 
+            depth: 2
+            hidden_dims: 120
+            use_guide: True # 是否使用引导信息
+          Head:
+            fc_decay: 0.00001 # 全连接权重衰减
+      - SARHead: # SAR头（用于注意力机制识别）
+          enc_dim: 512 # 编码器维度
+          max_text_length: *max_text_length # 文本最大长度（引用全局参数）
+
+Loss:
+  name: MultiLoss # 多任务损失（CTC+SAR）
+  loss_config_list:
+    - CTCLoss: # CTC损失（用于序列对齐）
+    - SARLoss: # SAR损失（用于注意力机制）
+
+PostProcess:  
+  name: CTCLabelDecode # 使用CTC解码（将模型输出转换为文本）
+
+Metric:
+  name: RecMetric # 识别任务评估指标
+  main_indicator: acc # 主指标（准确率）
+  ignore_space: False # 是否忽略空格字符
+
+Train:
+  dataset:
+    name: SimpleDataSet # 数据集类型（简单数据集）
+    data_dir: ./train_data/ # 数据集根目录
+    ext_op_transform_idx: 1 #  扩展操作索引（用于数据增强）
+    label_file_list: # 标签文件列表
+    - D:\PaddleOCR-2.6-release-2.6\train_data\rec\train.txt # 训练集标签文件路径
+    transforms: #数据增强流程
+    - DecodeImage: # 图像解码（BGR格式）
+        img_mode: BGR
+        channel_first: false
+    - RecConAug: # 复制增强（随机复制文本区域）
+        prob: 0.5
+        ext_data_num: 2
+        image_shape: [48, 320, 3] # 输入图像尺寸
+        max_text_length: *max_text_length
+    - RecAug: # 其他数据增强（如颜色抖动）
+    - MultiLabelEncode: # 多标签编码（CTC+SAR）
+    - RecResizeImg: # 调整图像尺寸
+        image_shape: [3, 48, 320] # 输出尺寸（CHW）
+    - KeepKeys: # 保留的字段（用于训练）
+        keep_keys:
+        - image
+        - label_ctc
+        - label_sar
+        - length
+        - valid_ratio
+  loader:
+    shuffle: true # 是否打乱数据
+    batch_size_per_card: 4 # 每张卡的batch size
+    drop_last: true # 是否随机丢弃最后不足一个batch的数据
+    num_workers: 4 # 数据加载线程数
+Eval:
+  dataset:
+    name: SimpleDataSet # 数据集类型
+    data_dir: ./train_data # 数据根目录
+    label_file_list: # 标签文件列表
+    - D:\PaddleOCR-2.6-release-2.6\train_data\rec\val.txt # 验证集标签文件路径
+    transforms: # 数据预处理流程（与训练类似，但无增强）
+    - DecodeImage:
+        img_mode: BGR
+        channel_first: false
+    - MultiLabelEncode:
+    - RecResizeImg:
+        image_shape: [3, 48, 320]
+    - KeepKeys:
+        keep_keys:
+        - image
+        - label_ctc
+        - label_sar
+        - length
+        - valid_ratio
+  loader:
+    shuffle: false # 评估时不打乱数据
+    drop_last: false # 不丢弃最后一个batch的数据
+    batch_size_per_card: 4 # 每张卡的batchsize
+    num_workers: 4 # 数据加载线程数
