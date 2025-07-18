@@ -93,3 +93,6 @@ result = result[0]
 texts = [print(line) for line in result]
 ```
 
+## 8.接口
+
+inferface文件夹下为推理接口
